@@ -23,9 +23,7 @@ def get_cython_version():
 # Only use Cython if it is available, else just use the pre-generated files
 try:
     cython_version = get_cython_version()
-    # Requires
-
-    Cython version 0.13 and up
+    # Requires Cython version 0.13 and up
     if cython_version[0] == 0 and cython_version[1] < 13:
         raise ImportError
     from Cython.Distutils import build_ext
