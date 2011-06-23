@@ -2,23 +2,24 @@ import imfeat
 import vidfeat
 import numpy as np
 
+MODES = [('opencv', 'bgr', 8)]
+
 
 class Histogram(object):
 
-    def __init__(self, diff_thresh=10, skip_mod=1, min_interval=3.0):
+    def __init__(self, diff_thresh=10, min_interval=3.0):
         self._diff_thresh = diff_thresh
-        self._skip_mod = skip_mod
         self._min_interval = min_interval
         self.scores = []
 
     def get_scores(self):
         return np.array(self.scores)
 
-    def __call__(self, video):
+    def __call__(self, frame_iter):
         prev_vec = None
         prev_time = None
-        for frame_num, frame_time, frame in vidfeat.convert_video(video, ('frameiterskip', [('opencv', 'bgr', 8)], self._skip_mod)):
 
+        for frame_num, frame_time, frame in frame_iter:
             width, height = frame.width, frame.height
             cgr = imfeat.CoordGeneratorRect
             out = []
@@ -30,8 +31,8 @@ class Histogram(object):
             if prev_vec is not None:
                 score = np.sum(np.abs(prev_vec - cur_vec))
                 self.scores.append(score)
-                if score > self._diff_thresh and \
-                       frame_time - prev_time > self._min_interval:
+                #print score, frame_time - prev_time, self._min_interval
+                if score > self._diff_thresh and frame_time - prev_time > self._min_interval:
                     iskeyframe = True
                     prev_time = frame_time
                 else:
