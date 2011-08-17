@@ -16,7 +16,7 @@ def main(path, output_dir):
     if 1:
         #kf = keyframe.Meta([keyframe.SURF(max_diff=15), keyframe.Histogram(min_diff=5)], min_diff=2)
         kf = keyframe.DecisionTree()
-        kf.load()
+        kf.load('out2.pkl')
         #stream = pyffmpeg.VideoStream()
         #stream.open(path)
         prev_frame = None
