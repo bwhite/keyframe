@@ -4,6 +4,7 @@ import keyframe
 import impoint
 import glob
 import cv
+import cv2
 import os
 import vidfeat
 import random
@@ -13,11 +14,13 @@ import cPickle as pickle
 
 class DecisionTree(keyframe.BaseKeyframer):
 
-    def __init__(self, min_diff=.8, **kw):
+    def __init__(self, min_diff=.2, max_feat_width=320, **kw):
         super(DecisionTree, self).__init__([('opencv', 'bgr', 8)], min_diff=min_diff, **kw)
         self._surf = impoint.SURF()
         self._feat = imfeat.Histogram('lab', num_bins=8)
+        self._grad_hist = imfeat.GradientHistogram(num_bins=4)
         self.rfc = None
+        self.max_feat_width = max_feat_width
 
     def train(self, gt_path, video_path, hard_negatives=False):
         if not hard_negatives:
@@ -40,7 +43,7 @@ class DecisionTree(keyframe.BaseKeyframer):
                 os.makedirs('out_frames/neg')
             except OSError:
                 pass
-            fn = '%s/%s/%s-compressed.avi' % (video_path, event, video_name)
+            fn = '%s/%s/%s.mp4' % (video_path, event, video_name)
             if not os.path.exists(fn):
                 continue
             for frame_num, frame_time, frame in vidfeat.convert_video_ffmpeg(fn, ('frameiter', self.MODES)):
@@ -84,8 +87,8 @@ class DecisionTree(keyframe.BaseKeyframer):
         print('NumPos[%d] NumNeg[%d]' % (len(self.pos_label_values), len(self.neg_label_values)))
         values = np.vstack(zip(*label_values)[1])
         dims = zip(np.min(values, 0), np.max(values, 0))
-        self.rfc = classipy.RandomForestClassifier(classipy.rand_forest.VectorFeatureFactory(dims, np.zeros(len(dims)), 100), num_feat=1000, tree_depth=4)
-        for _ in range(5):
+        self.rfc = classipy.RandomForestClassifier(classipy.rand_forest.VectorFeatureFactory(dims, np.zeros(len(dims)), 100), num_feat=1000, tree_depth=3)
+        for _ in range(10):
             self.rfc.train(label_values, replace=False)
 
     def save(self, fn='out.pkl'):
@@ -106,20 +109,28 @@ class DecisionTree(keyframe.BaseKeyframer):
         out.append(out[2] + out[3] + out[6] + out[7])
         out.append(out[8] + out[9] + out[12] + out[13])
         out.append(out[10] + out[11] + out[14] + out[15])
-        out = [out[16] + out[17] + out[18] + out[19]]
+        out.append(out[16] + out[17] + out[18] + out[19])
         return out
 
     def feat_func(self, frame):
+        if frame.width > self.max_feat_width:
+            height = int((self.max_feat_width / float(frame.width)) * frame.height)
+            frame = cv.fromarray(cv2.resize(np.asarray(cv.GetMat(frame)), (self.max_feat_width, height)))
         gray_frame = imfeat.convert_image(frame, [('opencv', 'gray', 8)])
-        #gray_frame_f = imfeat.convert_image(frame, [('opencv', 'gray', 32)])
         s = self._surf(gray_frame)
         h = self._hist_feat_func(frame)
-        return {'surf': s, 'hist': h}
+        gh = self._grad_hist(gray_frame)
+        return {'surf': s, 'hist': h, 'gh': gh}
 
     def _diff_func(self, points0, points1):
-        num_match = np.asfarray([len(self._surf.match(points0['surf'], points1['surf'])) / (len(points0['surf']) * len(points1['surf']) + .00000001)])
+        self.surf_debug = {}
+        self.surf_debug['matches'] = self._surf.match(points0['surf'], points1['surf'])
+        self.surf_debug['points0'] = points0['surf']
+        self.surf_debug['points1'] = points1['surf']
+        num_match = len(self.surf_debug['matches'])
+        num_match = np.asfarray([num_match / (len(points0['surf']) * len(points1['surf']) + .00000001)])
         hist_diff_sums = np.array([np.sum(np.abs(x - y)) for x, y in zip(points0['hist'], points1['hist'])])
-        return np.hstack([num_match, hist_diff_sums])
+        return np.hstack([num_match, hist_diff_sums, points0['gh'], points1['gh']])
 
     def diff_func(self, points0, points1):
         preds = sorted([x[::-1] for x in self.rfc.predict(self._diff_func(points0, points1))])

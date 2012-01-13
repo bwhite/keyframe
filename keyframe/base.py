@@ -19,12 +19,12 @@ class BaseKeyframer(object):
         return np.array(self.scores)
 
     def __call__(self, frame_iter):
-        prev_vec = None
+        self.prev_vec = None
         prev_time = None
         for frame_num, frame_time, frame in frame_iter:
             cur_vec = self.feat_func(frame)
-            if prev_vec is not None:
-                score = self.diff_func(prev_vec, cur_vec)
+            if self.prev_vec is not None:
+                score = self.diff_func(self.prev_vec, cur_vec)
                 if self.verbose:
                     print('%d: Score[%f]' % (frame_num, score))
                 self.scores.append(score)
@@ -36,5 +36,5 @@ class BaseKeyframer(object):
             else:
                 prev_time = frame_time
                 iskeyframe = False
-            prev_vec = cur_vec
+            self.prev_vec = cur_vec
             yield (frame_num, frame_time, frame), iskeyframe
