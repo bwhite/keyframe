@@ -1,11 +1,7 @@
 import keyframe
-import pyffmpeg
-import cv
-import vidfeat
-import matplotlib
-matplotlib.use('agg')
-import pylab
+import cv2
 import os
+import viderator
 
 
 def main(path, output_dir):
@@ -13,41 +9,22 @@ def main(path, output_dir):
         os.makedirs(output_dir)
     except OSError:
         pass
-    if 1:
-        #kf = keyframe.Meta([keyframe.SURF(max_diff=15), keyframe.Histogram(min_diff=5)], min_diff=2)
-        kf = keyframe.DecisionTree()
-        kf.load('out2.pkl')
-        #stream = pyffmpeg.VideoStream()
-        #stream.open(path)
-        prev_frame = None
-        for (frame_num, frame_time, frame), iskeyframe in kf(vidfeat.convert_video_ffmpeg(path, ('frameiter', kf.MODES))):
-            if prev_frame:
-                if iskeyframe:
-                    cv.SaveImage(output_dir + '/%.8d-.jpg' % (frame_num - 1), prev_frame)
-                    cv.SaveImage(output_dir + '/%.8d+.jpg' % frame_num, frame)
-            prev_frame = frame
+    kf = keyframe.Meta([keyframe.SURF(min_diff=10), keyframe.Histogram(min_diff=10)], min_diff=2)
+    prev_frame = None
+    for (frame_num, frame_time, frame), iskeyframe in kf(viderator.frame_iter(path)):
+        if prev_frame is not None:
+            if iskeyframe:
+                cv2.imwrite(output_dir + '/%.8d-.jpg' % (frame_num - 1), prev_frame)
+                cv2.imwrite(output_dir + '/%.8d+.jpg' % frame_num, frame)
+        prev_frame = frame
 
-        pylab.figure(1)
-        pylab.clf()
-        pylab.plot(-kf.get_scores())
-        pylab.savefig('matches_fig.png')
-    else:
-        kf = keyframe.Histogram()
-        stream = pyffmpeg.VideoStream()
-        stream.open(path)
-        prev_frame = None
-        for (frame_num, frame_time, frame), iskeyframe in kf(vidfeat.convert_video(stream,
-                                                                                   ('frameiter', kf.MODES))):
-            if prev_frame:
-                if iskeyframe:
-                    cv.SaveImage(output_dir + '/%.8d-.jpg' % (frame_num - 1), prev_frame)
-                    cv.SaveImage(output_dir + '/%.8d+.jpg' % frame_num, frame)
-            prev_frame = frame
-
-        pylab.figure(1)
-        pylab.clf()
-        pylab.plot(kf.get_scores())
-        pylab.savefig('scores_fig.png')
+    import matplotlib
+    matplotlib.use('agg')
+    import pylab
+    pylab.figure(1)
+    pylab.clf()
+    pylab.plot(kf.get_scores())
+    pylab.savefig('matches_fig.png')
 
 
 def _parser():

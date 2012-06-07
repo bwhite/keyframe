@@ -1,13 +1,9 @@
 import numpy as np
-import vidfeat
-import imfeat
-import impoint
 
 
 class BaseKeyframer(object):
 
-    def __init__(self, modes, min_diff=float('inf'), max_diff=float('-inf'), min_interval=.5):
-        self.MODES = modes
+    def __init__(self, min_diff=float('inf'), max_diff=float('-inf'), min_interval=.5):
         self._min_diff = min_diff
         self._max_diff = max_diff
         self._min_interval = min_interval
@@ -20,7 +16,7 @@ class BaseKeyframer(object):
         prev_vec = None
         prev_time = None
         for frame_num, frame_time, frame in frame_iter:
-            width, height = frame.width, frame.height
+            height, width = frame.shape[:2]
             cur_vec = self.feat_func(frame)
             if prev_vec is not None:
                 score = self.diff_func(prev_vec, cur_vec)
