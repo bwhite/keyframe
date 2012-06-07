@@ -7,7 +7,6 @@ import cv
 import os
 import vidfeat
 import random
-import classipy
 import cPickle as pickle
 
 
@@ -84,6 +83,7 @@ class DecisionTree(keyframe.BaseKeyframer):
         print('NumPos[%d] NumNeg[%d]' % (len(pos_label_values), len(neg_label_values)))
         values = np.vstack(zip(*label_values)[1])
         dims = zip(np.min(values, 0), np.max(values, 0))
+        import classipy
         self.rfc = classipy.RandomForestClassifier(classipy.rand_forest.VectorFeatureFactory(dims, np.zeros(len(dims)), 100), num_feat=1000, tree_depth=3)
         self.rfc.train(label_values)
 
@@ -93,6 +93,7 @@ class DecisionTree(keyframe.BaseKeyframer):
 
     def load(self, fn='out.pkl'):
         with open(fn) as fp:
+            import classipy
             self.rfc = classipy.RandomForestClassifier(classipy.rand_forest.VectorFeatureFactory(), trees_ser=pickle.load(fp))
 
     def _hist_feat_func(self, frame):
