@@ -7,8 +7,7 @@ import impoint
 class Uniform(keyframe.BaseKeyframer):
 
     def __init__(self, **kw):
-        super(Uniform, self).__init__([('opencv', 'bgr', 8), ('opencv', 'gray', 8)],
-                                      **kw)
+        super(Uniform, self).__init__(min_diff=-float('inf'), **kw)
 
     def feat_func(self, frame):
         return 0
